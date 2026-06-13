@@ -25,7 +25,8 @@ class PerformanceAnalyser:
             "max_drawdown": round(float(self.max_drawdown())*100, 2),
             "sharpe_ratio": round(float(self.sharpe_ratio()), 2),
             "buy_and_hold_return": round(float(self.buy_and_hold_return()) * 100, 2),
-            "excess_return": round(float((self.total_return() - self.buy_and_hold_return())) * 100, 2)
+            "excess_return": round(float((self.total_return() - self.buy_and_hold_return())) * 100, 2),
+            "buy_and_hold_max_drawdown": round(float(self.buy_and_hold_max_drawdown()) * 100, 2)
         }
     
     def sharpe_ratio(self):
@@ -42,4 +43,11 @@ class PerformanceAnalyser:
         end_price = self.results["price"].iloc[-1]
 
         return (end_price / start_price) - 1
+    
+    def buy_and_hold_max_drawdown(self):
+        prices = self.results["price"]
+        rolling_peak = prices.cummax()
+        drawdown = (prices-rolling_peak) / rolling_peak
+
+        return drawdown.min()
     
