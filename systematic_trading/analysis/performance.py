@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 
 class PerformanceAnalyser:
     def __init__(self, results):
@@ -47,7 +46,7 @@ class PerformanceAnalyser:
         if volatility == 0:
             return 0
         
-        return (mean_return / volatility) * np.sqrt(252)
+        return (mean_return / volatility) * 252**0.5
     
     def cagr(self):
         start_value = self.results["portfolio_value"].iloc[0]
@@ -57,17 +56,29 @@ class PerformanceAnalyser:
         end_date = self.results["date"].iloc[-1]
 
         total_days = (end_date - start_date).days
-        years = total_days / 365
+        years = total_days / 365.25
+
+        if years <= 0:
+            return 0     
 
         return (end_value / start_value) ** (1 / years) - 1
     
+    def sortino_ratio(self, target_return=0):
+        excess_returns = self.returns - target_return
+        downside_returns = excess_returns.clip(upper=0)
+
+        downside_deviation = (downside_returns ** 2).mean() ** 0.5
+
+        if downside_deviation == 0:
+            return 0
+        
+        return (excess_returns.mean() / downside_deviation) * 252**0.5
+
     def summary(self):
         return {
             "total_return": round(float(self.total_return())*100, 2),
             "max_drawdown": round(float(self.max_drawdown())*100, 2),
             "sharpe_ratio": round(float(self.sharpe_ratio()), 2),
             "cagr": round(float(self.cagr()) * 100, 2),
-            "buy_and_hold_return": round(float(self.buy_and_hold_return()) * 100, 2),
-            "excess_return": round(float((self.total_return() - self.buy_and_hold_return())) * 100, 2),
-            "buy_and_hold_max_drawdown": round(float(self.buy_and_hold_max_drawdown()) * 100, 2)
+            "sortino_ratio": round(float(self.sortino_ratio()), 2),
         }
