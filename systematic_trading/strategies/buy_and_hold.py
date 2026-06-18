@@ -12,16 +12,6 @@ class BuyAndHold:
         return signals
 
 
-class EqualWeightRebalanced:
-    def generate_target_weights(self, prices):
-        target_weights = pd.DataFrame(0.0, index=prices.index, columns=prices.columns)
-
-        weight = 1.0 / len(prices.columns)
-        target_weights.loc[:, prices.columns] = weight
-
-        return target_weights
-    
-
 class EqualWeightBuyAndHold:
     def generate_target_weights(self, prices):
         initial_weights = pd.Series(1.0 / len(prices.columns), index=prices.columns)
