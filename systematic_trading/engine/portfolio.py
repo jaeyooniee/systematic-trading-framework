@@ -40,7 +40,6 @@ class Portfolio:
                         "total_cost": total_cost
                     })
 
-
         elif signal == -1:
             sell_volume = self.positions.get(ticker, 0)
 
@@ -50,7 +49,6 @@ class Portfolio:
                 trade_value = sell_price * sell_volume
                 commission_cost = trade_value * self.commission
 
-                # total returns I get is the yields - commission.
                 total_proceeds = trade_value - commission_cost
                 self.cash += total_proceeds
                 self.positions[ticker] = 0
@@ -62,21 +60,100 @@ class Portfolio:
                     "volume": sell_volume,
                     "price": price,
                     "executed_price": sell_price,
-                    "trade_value": trade_value, 
+                    "trade_value": trade_value,
                     "commission": commission_cost,
                     "total_proceeds": total_proceeds
                 })
-
 
     def get_portfolio_value(self, prices):
         total_value = self.cash
 
         for ticker, volume in self.positions.items():
             curr_price = prices[ticker]
+            # negative volume (short position) correctly reduces portfolio value
             total_value += volume * curr_price
 
         return total_value
-                
 
+    # ------------------------------------------------------------------ #
+    # Pairs trading helpers — short selling support                        #
+    # ------------------------------------------------------------------ #
 
+    def _enter_long(self, ticker, price, budget, date):
+        exec_price = price * (1 + self.slippage)
+        qty = int(budget // (exec_price * (1 + self.commission)))
+        if qty <= 0:
+            return
+        total_cost = exec_price * qty * (1 + self.commission)
+        self.cash -= total_cost
+        self.positions[ticker] = self.positions.get(ticker, 0) + qty
+        self.trade_log.append({
+            "date": date, "ticker": ticker, "side": "BUY",
+            "volume": qty, "price": price,
+            "executed_price": exec_price, "total_cost": total_cost,
+        })
 
+    def _enter_short(self, ticker, price, budget, date):
+        exec_price = price * (1 - self.slippage)
+        qty = int(budget // (exec_price * (1 + self.commission)))
+        if qty <= 0:
+            return
+        proceeds = exec_price * qty * (1 - self.commission)
+        self.cash += proceeds
+        self.positions[ticker] = self.positions.get(ticker, 0) - qty
+        self.trade_log.append({
+            "date": date, "ticker": ticker, "side": "SHORT",
+            "volume": qty, "price": price,
+            "executed_price": exec_price, "total_proceeds": proceeds,
+        })
+
+    def _close_position(self, ticker, price, date):
+        qty = self.positions.get(ticker, 0)
+        if qty == 0:
+            return
+        if qty > 0:
+            exec_price = price * (1 - self.slippage)
+            proceeds = exec_price * qty * (1 - self.commission)
+            self.cash += proceeds
+            self.trade_log.append({
+                "date": date, "ticker": ticker, "side": "SELL",
+                "volume": qty, "price": price,
+                "executed_price": exec_price, "total_proceeds": proceeds,
+            })
+        else:
+            qty_abs = abs(qty)
+            exec_price = price * (1 + self.slippage)
+            cost = exec_price * qty_abs * (1 + self.commission)
+            self.cash -= cost
+            self.trade_log.append({
+                "date": date, "ticker": ticker, "side": "COVER",
+                "volume": qty_abs, "price": price,
+                "executed_price": exec_price, "total_cost": cost,
+            })
+        self.positions[ticker] = 0
+
+    def execute_pairs_trade(self, ticker_a, ticker_b, signal, price_a, price_b, date):
+        """
+        Executes pairs trade signal:
+          signal =  1 -> long A, short B  (buy the spread)
+          signal = -1 -> short A, long B  (sell the spread)
+          signal =  0 -> exit all positions
+        """
+        pos_a = self.positions.get(ticker_a, 0)
+        current = 1 if pos_a > 0 else (-1 if pos_a < 0 else 0)
+
+        # Exit if signal flipped or returning to flat
+        if current != 0 and current != signal:
+            self._close_position(ticker_a, price_a, date)
+            self._close_position(ticker_b, price_b, date)
+            current = 0
+
+        # Enter new position
+        if signal != 0 and current == 0:
+            half_budget = self.cash * self.risk_per_trade / 2
+            if signal == 1:
+                self._enter_long(ticker_a, price_a, half_budget, date)
+                self._enter_short(ticker_b, price_b, half_budget, date)
+            else:
+                self._enter_short(ticker_a, price_a, half_budget, date)
+                self._enter_long(ticker_b, price_b, half_budget, date)

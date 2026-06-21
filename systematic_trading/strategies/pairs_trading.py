@@ -27,7 +27,7 @@ class PairsTrading:
         """
         _, pvalue, _ = coint(prices_a.values, prices_b.values)
         self.coint_pvalue = pvalue
-        self.is_cointegrated = pvalue < 0.05
+        self.is_cointegrated = bool(pvalue < 0.05)
         return self.is_cointegrated, pvalue
 
     def generate_signals(self, prices_a, prices_b):
