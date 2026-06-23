@@ -1,4 +1,6 @@
-⚠️ **DEPRECATED**: This repository is no longer maintained. Please use [New-Repo-Link] instead.
+# ⚠️ **DEPRECATED**: This repository is no longer maintained. Please use [New-Repo-Link] instead.
+
+
 
 # Systematic Trading Framework
 
