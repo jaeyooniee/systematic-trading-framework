@@ -1,3 +1,5 @@
+⚠️ **DEPRECATED**: This repository is no longer maintained. Please use [New-Repo-Link] instead.
+
 # Systematic Trading Framework
 
 - Currently on break to study strategies and their backgrounds before tailoring them into my project.
